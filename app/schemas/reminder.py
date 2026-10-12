@@ -25,25 +25,6 @@ class ReminderGenerationRequest(BaseModel):
     )
 
 
-class ReminderGenerationResponse(BaseModel):
-    """Response returned upon completion of reminder generation."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    status: str = Field(default="completed", description="Batch execution status.")
-    total_reviewed: int = Field(description="Total encounters inspected within the window.")
-    reminders_created: int = Field(description="New follow-up reminders drafted and persisted.")
-    reminders_skipped: int = Field(description="Encounters skipped because reminders already exist.")
-    failures: int = Field(description="Encounters that encountered individual processing errors.")
-    created_reminder_ids: List[int] = Field(
-        default_factory=list, description="IDs of newly persisted FollowUpReminder records."
-    )
-    failed_appointment_ids: List[int] = Field(
-        default_factory=list, description="IDs of encounters that failed processing."
-    )
-    window_days: int = Field(description="Applied lookback window in days.")
-
-
 class ValidationCheckDetail(BaseModel):
     """Individual guardrail validation rule outcome."""
 
@@ -79,6 +60,29 @@ class ReminderDetailResponse(BaseModel):
     delivery_provider: Optional[str] = Field(default=None, description="Delivery provider name")
     delivery_reference_id: Optional[str] = Field(default=None, description="External provider message ID")
     delivery_error: Optional[str] = Field(default=None, description="Delivery error details if failed")
+
+
+class ReminderGenerationResponse(BaseModel):
+    """Response returned upon completion of reminder generation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str = Field(default="completed", description="Batch execution status.")
+    total_reviewed: int = Field(description="Total encounters inspected within the window.")
+    reminders_created: int = Field(description="New follow-up reminders drafted and persisted.")
+    reminders_skipped: int = Field(description="Encounters skipped because reminders already exist.")
+    failures: int = Field(description="Encounters that encountered individual processing errors.")
+    created_reminder_ids: List[int] = Field(
+        default_factory=list, description="IDs of newly persisted FollowUpReminder records."
+    )
+    failed_appointment_ids: List[int] = Field(
+        default_factory=list, description="IDs of encounters that failed processing."
+    )
+    window_days: int = Field(description="Applied lookback window in days.")
+    reminders: List[ReminderDetailResponse] = Field(
+        default_factory=list,
+        description="Detailed list of generated or active reminder records within the eligible window.",
+    )
 
 
 class ReminderUpdateRequest(BaseModel):

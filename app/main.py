@@ -6,6 +6,14 @@ from typing import Optional
 from fastapi import FastAPI
 from sqlalchemy import Engine
 
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logging.getLogger("app").setLevel(logging.INFO)
+
 from app.api.v1 import api_v1_router
 from app.core.config import Settings, get_settings
 from app.db.session import get_engine, init_db
