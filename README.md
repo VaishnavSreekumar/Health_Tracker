@@ -369,17 +369,30 @@ python -m evals.run
 
 ## 10. AI Usage Disclosure
 
-In adherence to assessment transparency requirements, this section documents AI tooling used in this project:
-- **Tools**: Google DeepMind Antigravity / Gemini coding assistance.
-- **Assisted Areas**:
-  - Drafting initial Pydantic schema structures and regex patterns for sentence completeness.
-  - Designing UI components for the atelier decision panel and audit table.
-  - Formulating edge cases for the synthetic offline evaluation harness.
-- **Subsequent Human Verification**:
-  - Validated all database relationships, foreign key constraints, and cascading rules.
-  - Implemented the custom `ReminderStatusType` to resolve legacy SQLite enum case mismatches.
-  - Confirmed privacy-safe logging across all provider clients (redacting tokens and patient details).
-  - Verified test isolation fixtures and non-destructive database operations.
+In adherence to the assessment instructions, this section discloses the use of AI tools during the development of HealthTrack:
+
+### 10.1 Development Tooling vs. Runtime Providers
+- **Development Tools**: **ChatGPT** and **Google Antigravity** (pair-programming coding assistant) were used during the development lifecycle.
+- **Runtime Providers (Not Development Tools)**: OpenRouter (Nemotron free tier) and Google Gemini (Gemini 2.5/3.6 Flash) are configured strictly as **application-level runtime integrations** for patient message personalization and are decoupled from the code-generation tooling.
+
+### 10.2 Areas Assisted
+- **Architecture Planning**: Structuring the 7-day lookback interval query, multi-tier provider fallback strategy, and 5-tier guardrail filter sequence.
+- **Implementation Assistance**: Writing initial FastAPI endpoint handlers, Pydantic v2 validation models, and React 19 UI component layout (Studio decision panel and Audit log).
+- **Debugging & Hardening**: Diagnosing legacy SQLite enum casing mismatches (`draft` vs. `DRAFT`), leading to the `ReminderStatusType` TypeDecorator; resolving test database isolation issues; and eliminating token literal patterns flagged by push protection.
+- **Test & Evaluation Development**: Formulating synthetic edge cases for the 16-case offline evaluation benchmark and structuring unit test fixtures in `tests/conftest.py`.
+- **Documentation**: Drafting technical Markdown outlines, API tables, and Mermaid diagram structures.
+
+### 10.3 Verification & Review Performed
+- **Automated Verification**:
+  - Re-ran the complete backend test suite: **114 passing tests** across models, API contracts, guardrails, and provider clients.
+  - Executed the offline evaluation harness: **16/16 benchmark cases passed** (100% guarded pass rate, 0 unsafe outputs accepted, 12 fallbacks activated).
+  - Executed the frontend production build: **`tsc -b && vite build` completed successfully** with zero TypeScript errors.
+- **Human Inspection**: Inspected relational models and foreign key constraints (`PRAGMA foreign_keys=ON`), verified privacy-safe logging across provider clients (redacting tokens and patient details), confirmed database isolation across tests, and audited `.gitignore` coverage.
+- **Honest Boundaries**: Not every line of AI-assisted code was subjected to exhaustive line-by-line manual code audit; verification relied primarily on automated test coverage, static analysis, type checks, and targeted manual code inspection of safety-critical modules.
+
+### 10.4 Clinical & Safety Limitations
+- **No Clinical Certification**: The synthetic 16-case evaluation harness benchmarks structural hygiene and prompt injection defense; it does **not** establish clinical safety or efficacy.
+- **Heuristic Guardrails**: Regular expressions and keyword heuristics enforce syntactic boundaries and non-prescriptive tone, but cannot substitute for licensed healthcare professional medical judgment.
 
 ---
 
