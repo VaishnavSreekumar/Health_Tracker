@@ -1,5 +1,6 @@
 """Tests for foundational API endpoints."""
 
+from pathlib import Path
 from starlette.testclient import TestClient
 
 
@@ -27,11 +28,13 @@ def test_nonexistent_endpoint_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_create_app_without_lifespan_does_not_create_database_file() -> None:
+def test_create_app_without_lifespan_does_not_create_database_file(tmp_path: Path) -> None:
     """Verify that constructing the FastAPI app does not trigger table creation or disk side-effects."""
-    from pathlib import Path
+    from app.core.config import Settings
     from app.main import create_app
 
-    app_instance = create_app()
+    target_db = tmp_path / "uninitialized_check.db"
+    test_settings = Settings(database_url=f"sqlite:///{target_db}")
+    app_instance = create_app(settings=test_settings)
     assert app_instance.title == "HealthTrack Follow-Up System"
-    assert not Path("healthtrack.db").exists()
+    assert not target_db.exists()

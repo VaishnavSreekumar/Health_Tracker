@@ -15,6 +15,8 @@ from app.services.llm_client import (
     GeminiLLMClient,
     LLMAuthError,
     LLMConfigurationError,
+    LLMInvalidRequestError,
+    LLMModelNotFoundError,
     LLMProviderError,
     LLMRateLimitError,
     LLMResponseError,
@@ -191,6 +193,99 @@ def test_gemini_compliant_output_accepted_with_ai_metadata(
     assert details["message_text"] == safe_text
 
 
+@patch("google.genai.Client")
+def test_gemini_model_not_found_mapped_accurately(mock_genai_client_class: MagicMock) -> None:
+    """Verify 404 NOT_FOUND errors are mapped to LLMModelNotFoundError and trigger model fallback."""
+    from google.genai import errors
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.models.generate_content.side_effect = errors.ClientError(
+        404, {"error": {"message": "models/gemini-3.6-flash is not found for API version v1beta"}}
+    )
+    mock_genai_client_class.return_value = mock_client_instance
+
+    client = GeminiLLMClient(api_key="mock-key", model="gemini-3.6-flash")
+    with pytest.raises(LLMModelNotFoundError) as exc_info:
+        client.generate("prompt")
+
+    assert "model not found" in str(exc_info.value).lower()
+
+    personalizer = GuardrailedAIPersonalizer(llm_client=client)
+    apt = create_synthetic_appointment(first_name="Arthur")
+    details = personalizer.personalize_with_details(apt)
+    assert details["generation_source"] == "template_fallback"
+    assert "Provider model not found" in details["fallback_reason"]
+
+
+@patch("google.genai.Client")
+def test_gemini_invalid_request_mapped_accurately(mock_genai_client_class: MagicMock) -> None:
+    """Verify 400 INVALID_ARGUMENT (non-auth) errors are mapped to LLMInvalidRequestError."""
+    from google.genai import errors
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.models.generate_content.side_effect = errors.ClientError(
+        400, {"error": {"message": "INVALID_ARGUMENT: Unsupported temperature range."}}
+    )
+    mock_genai_client_class.return_value = mock_client_instance
+
+    client = GeminiLLMClient(api_key="mock-key", model="gemini-2.5-flash")
+    with pytest.raises(LLMInvalidRequestError) as exc_info:
+        client.generate("prompt")
+
+    assert "request invalid" in str(exc_info.value).lower()
+
+
+@patch("google.genai.Client")
+def test_gemini_auth_error_not_classified_as_quota(mock_genai_client_class: MagicMock) -> None:
+    """Verify API_KEY_INVALID error raises LLMAuthError and does not classify as rate limit."""
+    from google.genai import errors
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.models.generate_content.side_effect = errors.ClientError(
+        400, {"error": {"message": "API_KEY_INVALID: API key not valid. Please pass a valid API key."}}
+    )
+    mock_genai_client_class.return_value = mock_client_instance
+
+    client = GeminiLLMClient(api_key="bad-key")
+    personalizer = GuardrailedAIPersonalizer(llm_client=client)
+    apt = create_synthetic_appointment(first_name="Arthur")
+    details = personalizer.personalize_with_details(apt)
+
+    assert details["generation_source"] == "template_fallback"
+    assert "authentication failed" in details["fallback_reason"].lower()
+    assert "rate limit" not in details["fallback_reason"].lower()
+
+
+@patch("google.genai.Client")
+def test_gemini_quota_exhausted_preserves_rate_limit_category(mock_genai_client_class: MagicMock) -> None:
+    """Verify 429 RESOURCE_EXHAUSTED specifically maps to quota fallback reason."""
+    from google.genai import errors
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.models.generate_content.side_effect = errors.ClientError(
+        429, {"error": {"message": "RESOURCE_EXHAUSTED: Quota exceeded for quota metric 'GenerateContent requests per minute'."}}
+    )
+    mock_genai_client_class.return_value = mock_client_instance
+
+    client = GeminiLLMClient(api_key="mock-key")
+    personalizer = GuardrailedAIPersonalizer(llm_client=client)
+    apt = create_synthetic_appointment(first_name="Arthur")
+    details = personalizer.personalize_with_details(apt)
+
+    assert details["generation_source"] == "template_fallback"
+    assert "429 RESOURCE_EXHAUSTED" in details["fallback_reason"]
+
+
+def test_offline_mode_returns_explicit_offline_fallback() -> None:
+    """Verify unconfigured client falls back with explicit offline notice."""
+    personalizer = GuardrailedAIPersonalizer(llm_client=None)
+    apt = create_synthetic_appointment(first_name="Arthur")
+    details = personalizer.personalize_with_details(apt)
+
+    assert details["generation_source"] == "template_fallback"
+    assert "Offline mode" in details["fallback_reason"]
+
+
 # ==============================================================================
 # REAL PROVIDER INTEGRATION TEST (OPT-IN VIA GEMINI_API_KEY)
 # ==============================================================================
@@ -227,7 +322,11 @@ def test_gemini_live_provider_integration() -> None:
     # Validate output
     assert details["message_text"], "Generated message must not be empty"
     validator = GuardrailValidator()
-    val = validator.validate(details["message_text"], expected_name="Beatrice")
+    val = validator.validate(
+        details["message_text"],
+        expected_name="Beatrice",
+        allowed_date=apt.appointment_datetime,
+    )
 
     assert val.is_valid, f"Live Gemini output failed guardrails: {val.reason}"
     assert details["generation_source"] in ("ai", "template_fallback")
