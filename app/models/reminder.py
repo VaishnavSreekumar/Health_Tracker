@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.types import TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, UTCDateTime, utc_now
@@ -21,6 +22,45 @@ class ReminderStatus(str, Enum):
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"
+
+class ReminderStatusType(TypeDecorator):
+    """Robust SQL type handling both canonical uppercase enum names ('DRAFT')
+    and legacy/raw lowercase values ('draft').
+
+    Always writes canonical uppercase representation ('DRAFT') to the database.
+    """
+
+    impl = String(20)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, ReminderStatus):
+            return value.name
+        if isinstance(value, str):
+            clean = value.strip().upper()
+            if clean in ReminderStatus.__members__:
+                return clean
+            for member in ReminderStatus:
+                if member.value.upper() == clean:
+                    return member.name
+            raise ValueError(f"'{value}' is not a valid ReminderStatus")
+        return str(value)
+
+    def process_result_value(self, value, dialect) -> Optional[ReminderStatus]:
+        if value is None:
+            return None
+        if isinstance(value, ReminderStatus):
+            return value
+        if isinstance(value, str):
+            clean = value.strip().upper()
+            if clean in ReminderStatus.__members__:
+                return ReminderStatus[clean]
+            for member in ReminderStatus:
+                if member.value.upper() == clean:
+                    return member
+        raise LookupError(f"'{value}' is not among the defined enum values for ReminderStatus")
 
 
 class FollowUpReminder(Base):
@@ -48,7 +88,7 @@ class FollowUpReminder(Base):
     )
     message_text: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[ReminderStatus] = mapped_column(
-        SQLEnum(ReminderStatus, native_enum=False, length=20),
+        ReminderStatusType(),
         default=ReminderStatus.DRAFT,
         nullable=False,
         index=True,
