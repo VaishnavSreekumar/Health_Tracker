@@ -191,9 +191,5 @@ export const api = {
   getDeliveryLogs: () => request<DeliveryLog[]>('/api/v1/delivery/logs'),
   getSystemSettings: () => request<SystemSettings>('/api/v1/system/settings'),
 
-  seedDemoData: () =>
-    request<{ status: string; message: string; patients_count: number }>('/api/v1/system/seed-demo', {
-      method: 'POST',
-    }),
-  resetDemoData: () => request<{ status: string; message: string }>('/api/v1/system/reset-demo', { method: 'POST' }),
+  resetWorkspace: () => request<{ status: string; message: string }>('/api/v1/system/reset', { method: 'POST' }),
 };

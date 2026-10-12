@@ -149,7 +149,7 @@ export const PatientsScreen: FC = () => {
             {filteredPatients.length === 0 && (
               <tr>
                 <td colSpan={5} style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-muted)' }}>
-                  {searchQuery ? 'No matching patient records found.' : 'No patients registered yet. Click "+ Register Patient" or "Seed Demo Data".'}
+                  {searchQuery ? 'No matching patient records found.' : 'No patients registered yet. Click "+ Register Patient" above to add your first patient.'}
                 </td>
               </tr>
             )}
@@ -175,7 +175,7 @@ export const PatientsScreen: FC = () => {
             <div className="panel-header">
               <div>
                 <span className="mono-label">New Record</span>
-                <h3 style={{ fontSize: '16px' }}>Register Synthetic Patient</h3>
+                <h3 style={{ fontSize: '16px' }}>Register Patient</h3>
               </div>
               <button onClick={() => setShowModal(false)} className="btn-ghost" style={{ padding: '2px 8px' }}>
                 ✕

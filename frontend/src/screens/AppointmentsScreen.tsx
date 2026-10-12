@@ -3,10 +3,12 @@ import { api, type Appointment, type Patient } from '../api/client';
 
 interface AppointmentsScreenProps {
   onDraftInStudio: (appointmentId: number) => void;
+  onNavigateToPatients?: () => void;
 }
 
 export const AppointmentsScreen: FC<AppointmentsScreenProps> = ({
   onDraftInStudio,
+  onNavigateToPatients,
 }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -189,9 +191,27 @@ export const AppointmentsScreen: FC<AppointmentsScreenProps> = ({
             {appointments.length === 0 && (
               <tr>
                 <td colSpan={7} style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-muted)' }}>
-                  {eligibleOnly
-                    ? 'No encounters within the 7-day lookback window. Uncheck filter or record a recent encounter.'
-                    : 'No appointments found. Record an encounter or load demonstration data.'}
+                  {eligibleOnly ? (
+                    'No encounters within the 7-day lookback window. Uncheck filter or record a recent encounter.'
+                  ) : patients.length === 0 ? (
+                    <div>
+                      <p style={{ marginBottom: '12px' }}>
+                        No clinical encounters recorded. Register your first patient in the Patient Register to begin scheduling visits.
+                      </p>
+                      {onNavigateToPatients && (
+                        <button
+                          type="button"
+                          onClick={onNavigateToPatients}
+                          className="btn-primary"
+                          style={{ fontSize: '12px', padding: '6px 14px' }}
+                        >
+                          Register Patient
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    'No encounters recorded yet. Click "+ Record Encounter" above to schedule a patient visit.'
+                  )}
                 </td>
               </tr>
             )}

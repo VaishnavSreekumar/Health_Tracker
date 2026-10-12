@@ -3,11 +3,15 @@ import { api, type ActivityItem, type OverviewMetrics } from '../api/client';
 
 interface OverviewScreenProps {
   onNavigateToStudio: (appointmentId?: number) => void;
+  onNavigateToPatients?: () => void;
+  onNavigateToAppointments?: () => void;
   onRefreshData?: () => void;
 }
 
 export const OverviewScreen: FC<OverviewScreenProps> = ({
   onNavigateToStudio,
+  onNavigateToPatients,
+  onNavigateToAppointments,
 }) => {
   const [metrics, setMetrics] = useState<OverviewMetrics | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -34,12 +38,29 @@ export const OverviewScreen: FC<OverviewScreenProps> = ({
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', padding: 'var(--space-6)', width: '100%' }}>
       {/* Header */}
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <div className="mono-label">Clinic Operations Dashboard</div>
-        <h1 style={{ marginTop: '2px' }}>Operational Overview</h1>
-        <p style={{ color: 'var(--color-muted)', fontSize: '13px', marginTop: '4px' }}>
-          Real-time patient follow-up activity, pending human reviews, and delivery status.
-        </p>
+      <div style={{ marginBottom: 'var(--space-6)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div className="mono-label">Clinic Operations Dashboard</div>
+          <h1 style={{ marginTop: '2px' }}>Operational Overview</h1>
+          <p style={{ color: 'var(--color-muted)', fontSize: '13px', marginTop: '4px' }}>
+            Real-time patient follow-up activity, pending human reviews, and local persistence state.
+          </p>
+        </div>
+
+        <div style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '8px 12px',
+          fontSize: '11px',
+          color: 'var(--color-muted)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#D66A45', display: 'inline-block' }} />
+          <span>Delivery Transport: <strong>Disabled (Safe Local Mode)</strong></span>
+        </div>
       </div>
 
       {errorMessage && (
@@ -56,8 +77,64 @@ export const OverviewScreen: FC<OverviewScreenProps> = ({
         </div>
       )}
 
-      {/* PRIORITY ACTION CALLOUT: Leads with next operator action */}
-      {metrics && metrics.drafts_pending_review > 0 ? (
+      {/* CONTEXTUAL ACTION CALLOUT / EMPTY-STATE HIERARCHY */}
+      {metrics && metrics.total_patients === 0 ? (
+        <div style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '24px 28px',
+          marginBottom: 'var(--space-6)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div>
+            <div className="mono-label" style={{ color: 'var(--color-primary)' }}>WORKSPACE READY</div>
+            <h2 style={{ fontSize: '1.4rem', marginTop: '4px', color: 'var(--color-ink)' }}>
+              Your workspace is ready.
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--color-muted)', marginTop: '4px', maxWidth: '580px', lineHeight: 1.5 }}>
+              No clinical records currently exist in the database. Begin by registering your first patient to initiate encounter logging and personalized follow-up drafting.
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigateToPatients ? onNavigateToPatients() : null}
+            className="btn-primary"
+            style={{ padding: '10px 20px', fontSize: '13px', whiteSpace: 'nowrap' }}
+          >
+            + Register Patient →
+          </button>
+        </div>
+      ) : metrics && metrics.total_appointments === 0 ? (
+        <div style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '20px 24px',
+          marginBottom: 'var(--space-6)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div>
+            <div className="mono-label">NEXT STEP</div>
+            <h2 style={{ fontSize: '1.3rem', marginTop: '4px', color: 'var(--color-ink)' }}>
+              Patients registered · No encounters recorded
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--color-muted)', marginTop: '4px' }}>
+              Record a patient visit to activate eligibility evaluation and post-encounter message generation.
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigateToAppointments ? onNavigateToAppointments() : null}
+            className="btn-primary"
+            style={{ padding: '8px 18px', fontSize: '13px', whiteSpace: 'nowrap' }}
+          >
+            + Record Encounter →
+          </button>
+        </div>
+      ) : metrics && metrics.drafts_pending_review > 0 ? (
         <div style={{
           backgroundColor: 'var(--color-signal-subtle)',
           border: '1px solid var(--status-rejected-border)',
@@ -99,7 +176,7 @@ export const OverviewScreen: FC<OverviewScreenProps> = ({
           <div>
             <div className="mono-label">OPPORTUNITY</div>
             <div style={{ fontSize: '15px', fontWeight: 600, marginTop: '2px' }}>
-              {metrics.eligible_appointments} recent encounters ready for follow-up outreach
+              {metrics.eligible_appointments} recent encounter{metrics.eligible_appointments > 1 ? 's' : ''} ready for follow-up outreach
             </div>
             <p style={{ fontSize: '13px', color: 'var(--color-muted)', marginTop: '2px' }}>
               Encounters within the 7-day lookback window can be drafted in the studio.
@@ -110,8 +187,29 @@ export const OverviewScreen: FC<OverviewScreenProps> = ({
             className="btn-primary"
             style={{ padding: '8px 16px' }}
           >
-            Launch Follow-up Studio
+            Launch Follow-up Studio →
           </button>
+        </div>
+      ) : metrics ? (
+        <div style={{
+          backgroundColor: 'var(--color-paper)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '16px 20px',
+          marginBottom: 'var(--space-6)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div>
+            <div className="mono-label" style={{ color: 'var(--color-primary)' }}>ALL QUEUES CLEAR</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, marginTop: '2px' }}>
+              All patient follow-up queues are up to date
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--color-muted)', marginTop: '2px' }}>
+              No pending clinical reviews or unhandled encounters requiring outreach.
+            </p>
+          </div>
         </div>
       ) : null}
 
@@ -129,7 +227,7 @@ export const OverviewScreen: FC<OverviewScreenProps> = ({
               {metrics.total_patients}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '4px' }}>
-              Registered synthetic records
+              Registered patient records
             </div>
           </div>
 
@@ -233,7 +331,7 @@ export const OverviewScreen: FC<OverviewScreenProps> = ({
           </table>
         ) : (
           <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-muted)' }}>
-            No recent follow-up activity found. Seed demo data or draft a reminder in the studio to generate activity records.
+            No recent follow-up activity. Actions taken in the Follow-up Studio will be audited here.
           </div>
         )}
       </div>

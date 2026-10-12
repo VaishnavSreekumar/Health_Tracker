@@ -9,10 +9,9 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { api } from './api/client';
 
 export function App() {
-  const [currentTab, setCurrentTab] = useState<NavigationTab>('studio');
+  const [currentTab, setCurrentTab] = useState<NavigationTab>('overview');
   const [studioAppointmentId, setStudioAppointmentId] = useState<number | null>(null);
   const [draftsCount, setDraftsCount] = useState<number>(0);
-  const [isSeeding, setIsSeeding] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Poll/fetch metrics to update draft count badge
@@ -29,29 +28,10 @@ export function App() {
     updateDraftBadge();
   }, [currentTab]);
 
-  const handleSeedDemo = async () => {
-    setIsSeeding(true);
-    setNotification(null);
+  const handleResetWorkspace = async () => {
     try {
-      const res = await api.seedDemoData();
-      setNotification({
-        type: 'success',
-        message: `${res.message} (${res.patients_count} patients loaded across active lifecycle states)`,
-      });
-      updateDraftBadge();
-      // Auto-switch to studio so user can immediately experience the workbench
-      setCurrentTab('studio');
-    } catch (err: any) {
-      setNotification({ type: 'error', message: `Failed to seed demo data: ${err.message}` });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
-  const handleResetDemo = async () => {
-    try {
-      await api.resetDemoData();
-      setNotification({ type: 'success', message: 'All demo records cleared from database.' });
+      await api.resetWorkspace();
+      setNotification({ type: 'success', message: 'All workspace records cleared successfully.' });
       setDraftsCount(0);
       setStudioAppointmentId(null);
       setCurrentTab('overview');
@@ -67,6 +47,9 @@ export function App() {
     setCurrentTab('studio');
   };
 
+  const navigateToPatients = () => setCurrentTab('patients');
+  const navigateToAppointments = () => setCurrentTab('appointments');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-paper)' }}>
       {/* Top Application Shell Navigation */}
@@ -76,8 +59,6 @@ export function App() {
           setCurrentTab(tab);
         }}
         draftsCount={draftsCount}
-        onSeedDemo={handleSeedDemo}
-        isSeeding={isSeeding}
       />
 
       {/* Global Notification Toast */}
@@ -110,6 +91,8 @@ export function App() {
         {currentTab === 'overview' && (
           <OverviewScreen
             onNavigateToStudio={navigateToStudioWithAppointment}
+            onNavigateToPatients={navigateToPatients}
+            onNavigateToAppointments={navigateToAppointments}
             onRefreshData={updateDraftBadge}
           />
         )}
@@ -117,6 +100,7 @@ export function App() {
         {currentTab === 'studio' && (
           <StudioScreen
             initialAppointmentId={studioAppointmentId}
+            onNavigateToAppointments={navigateToAppointments}
             onRefreshData={updateDraftBadge}
           />
         )}
@@ -124,12 +108,15 @@ export function App() {
         {currentTab === 'patients' && <PatientsScreen />}
 
         {currentTab === 'appointments' && (
-          <AppointmentsScreen onDraftInStudio={navigateToStudioWithAppointment} />
+          <AppointmentsScreen
+            onDraftInStudio={navigateToStudioWithAppointment}
+            onNavigateToPatients={navigateToPatients}
+          />
         )}
 
         {currentTab === 'delivery' && <DeliveryScreen />}
 
-        {currentTab === 'settings' && <SettingsScreen onResetData={handleResetDemo} />}
+        {currentTab === 'settings' && <SettingsScreen onResetData={handleResetWorkspace} />}
       </main>
 
       {/* Editorial Clinical Ops Footer */}

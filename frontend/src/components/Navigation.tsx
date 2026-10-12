@@ -12,16 +12,12 @@ interface NavigationProps {
   currentTab: NavigationTab;
   onTabChange: (tab: NavigationTab) => void;
   draftsCount?: number;
-  onSeedDemo: () => void;
-  isSeeding?: boolean;
 }
 
 export const Navigation: FC<NavigationProps> = ({
   currentTab,
   onTabChange,
   draftsCount = 0,
-  onSeedDemo,
-  isSeeding = false,
 }) => {
   return (
     <header style={{
@@ -141,17 +137,34 @@ export const Navigation: FC<NavigationProps> = ({
           })}
         </nav>
 
-        {/* Action: Controlled Demo Data Seed */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={onSeedDemo}
-            disabled={isSeeding}
-            className="btn-secondary"
-            style={{ fontSize: '12px', padding: '6px 12px' }}
-            title="Load synthetic clinical demonstration records"
+        {/* Subtle Workspace Status Indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-paper)',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--color-muted)',
+            }}
+            title="Standalone local operational environment (delivery disabled)"
           >
-            {isSeeding ? 'Loading Data...' : 'Seed Demo Data'}
-          </button>
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--color-primary)',
+                display: 'inline-block',
+              }}
+            />
+            Local Workspace
+          </div>
         </div>
       </div>
     </header>

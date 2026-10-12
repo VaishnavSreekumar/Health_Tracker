@@ -3,11 +3,13 @@ import { api, type Appointment, type ReminderDetail } from '../api/client';
 
 interface StudioScreenProps {
   initialAppointmentId?: number | null;
+  onNavigateToAppointments?: () => void;
   onRefreshData?: () => void;
 }
 
 export const StudioScreen: FC<StudioScreenProps> = ({
   initialAppointmentId,
+  onNavigateToAppointments,
   onRefreshData,
 }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -121,7 +123,7 @@ export const StudioScreen: FC<StudioScreenProps> = ({
       }
       const updated = await api.approveReminder(currentReminder.id);
       setCurrentReminder(updated);
-      setFeedbackMessage('Reminder approved for clinical communication.');
+      setFeedbackMessage('Draft approved. Note: External automated delivery is disabled.');
       fetchAppointments();
       if (onRefreshData) onRefreshData();
     } catch (err: any) {
@@ -211,7 +213,7 @@ export const StudioScreen: FC<StudioScreenProps> = ({
       {/* Three-Column Workbench Layout */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '320px 1fr 340px',
+        gridTemplateColumns: '320px 1fr 180px',
         gap: 'var(--space-5)',
         alignItems: 'start',
       }}>
@@ -287,7 +289,19 @@ export const StudioScreen: FC<StudioScreenProps> = ({
 
             {appointments.length === 0 && (
               <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-muted)' }}>
-                No clinical encounters found. Click "Seed Demo Data" above to load test records.
+                <p style={{ marginBottom: '12px' }}>
+                  No clinical encounters recorded yet. Record an encounter in the Appointments section to start drafting follow-up reminders.
+                </p>
+                {onNavigateToAppointments && (
+                  <button
+                    type="button"
+                    onClick={onNavigateToAppointments}
+                    className="btn-primary"
+                    style={{ fontSize: '12px', padding: '6px 14px' }}
+                  >
+                    Record Encounter
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -342,6 +356,63 @@ export const StudioScreen: FC<StudioScreenProps> = ({
                   >
                     {isLoading ? 'Generating...' : currentReminder ? 'Regenerate Draft' : 'Generate Initial Draft'}
                   </button>
+                </div>
+              </div>
+
+              {/* Compact Encounter Lifecycle Timeline */}
+              <div style={{
+                backgroundColor: 'var(--color-surface)',
+                border: '1px solid var(--color-border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '11px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>●</span>
+                  <span style={{ fontWeight: 600 }}>1. Encounter</span>
+                  <span style={{ color: 'var(--color-muted)' }}>Recorded</span>
+                </div>
+                <span style={{ color: 'var(--color-border)' }}>→</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: currentReminder ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: 700 }}>
+                    {currentReminder ? '●' : '○'}
+                  </span>
+                  <span style={{ fontWeight: currentReminder ? 600 : 400 }}>2. Draft</span>
+                  <span style={{ color: 'var(--color-muted)' }}>
+                    {currentReminder ? (currentReminder.generation_source === 'ai' ? 'AI' : 'Template') : 'Pending'}
+                  </span>
+                </div>
+                <span style={{ color: 'var(--color-border)' }}>→</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: currentReminder ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: 700 }}>
+                    {currentReminder?.is_edited ? '●' : currentReminder ? '◐' : '○'}
+                  </span>
+                  <span style={{ fontWeight: currentReminder ? 600 : 400 }}>3. Review</span>
+                  <span style={{ color: 'var(--color-muted)' }}>
+                    {currentReminder?.is_edited ? 'Edited' : currentReminder ? 'Unedited' : 'Waiting'}
+                  </span>
+                </div>
+                <span style={{ color: 'var(--color-border)' }}>→</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{
+                    color: currentReminder?.status === 'approved' ? 'var(--color-primary)' : currentReminder?.status === 'rejected' ? 'var(--color-signal)' : 'var(--color-muted)',
+                    fontWeight: 700,
+                  }}>
+                    {currentReminder?.status === 'approved' ? '✓' : currentReminder?.status === 'rejected' ? '✕' : '○'}
+                  </span>
+                  <span style={{ fontWeight: currentReminder?.status !== 'draft' && currentReminder ? 600 : 400 }}>4. Decision</span>
+                  <span style={{ color: 'var(--color-muted)' }}>
+                    {currentReminder?.status === 'approved' ? 'Approved' : currentReminder?.status === 'rejected' ? 'Rejected' : 'Pending'}
+                  </span>
+                </div>
+                <span style={{ color: 'var(--color-border)' }}>→</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: 'var(--color-muted)', fontWeight: 700 }}>○</span>
+                  <span style={{ color: 'var(--color-muted)' }}>5. Delivery</span>
+                  <span style={{ color: 'var(--color-muted)', fontStyle: 'italic', fontSize: '10px' }}>(Disabled)</span>
                 </div>
               </div>
 
@@ -466,154 +537,60 @@ export const StudioScreen: FC<StudioScreenProps> = ({
         </div>
 
         {/* ============================================================== */}
-        {/* COLUMN C: VALIDATION & PROVENANCE                              */}
+        {/* COLUMN C: REVIEW & DECISION                                    */}
         {/* ============================================================== */}
-        <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <div className="panel-header">
+        <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="panel-header" style={{ marginBottom: 'var(--space-3)' }}>
             <div>
-              <span className="mono-label">Step C</span>
-              <h3 style={{ fontSize: '16px' }}>Validation & Provenance</h3>
+              <span className="mono-label">Review</span>
+              <h3 style={{ fontSize: '15px' }}>Decision</h3>
             </div>
           </div>
 
           {currentReminder ? (
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 'var(--space-4)' }}>
-              {/* Provenance Box */}
-              <div style={{
-                backgroundColor: 'var(--color-paper)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px 14px',
-              }}>
-                <div className="mono-label" style={{ marginBottom: '6px' }}>GENERATION PROVENANCE</div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <span style={{
-                    display: 'inline-block',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: currentReminder.generation_source === 'ai' ? 'var(--color-primary)' : 'var(--color-signal)',
-                  }} />
-                  <span style={{ fontWeight: 600, fontSize: '13px' }}>
-                    {currentReminder.generation_source === 'ai' ? 'Configured LLM Generated' : 'Deterministic Template Fallback'}
-                  </span>
+            <div>
+              {currentReminder.status === 'draft' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    onClick={handleApprove}
+                    disabled={isSaving}
+                    className="btn-primary"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    {isSaving ? 'Processing...' : 'Approve Draft'}
+                  </button>
+                  <button
+                    onClick={handleReject}
+                    disabled={isSaving}
+                    className="btn-danger"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    Reject Draft
+                  </button>
                 </div>
-
-                {currentReminder.model_name && (
-                  <div style={{ fontSize: '12px', color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
-                    Model: {currentReminder.model_name}
+              ) : (
+                <div style={{
+                  padding: '10px',
+                  backgroundColor: 'var(--color-paper)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  textAlign: 'center',
+                }}>
+                  <span className="mono-label" style={{ fontSize: '9px' }}>STATUS</span>
+                  <div style={{ fontWeight: 600, fontSize: '13px', marginTop: '2px', textTransform: 'capitalize' }}>
+                    {currentReminder.status === 'approved' ? 'Approved' : currentReminder.status}
                   </div>
-                )}
-
-                {currentReminder.fallback_reason && (
-                  <div style={{
-                    marginTop: '8px',
-                    padding: '6px 8px',
-                    backgroundColor: 'var(--color-surface)',
-                    border: '1px solid var(--color-border-subtle)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '11px',
-                    color: 'var(--color-ink)',
-                    lineHeight: '1.4',
-                  }}>
-                    <strong>Fallback Reason:</strong> {currentReminder.fallback_reason}
-                  </div>
-                )}
-              </div>
-
-              {/* Guardrails Itemized Audit */}
-              <div>
-                <div className="mono-label" style={{ marginBottom: '8px' }}>
-                  SAFETY & COMPLIANCE CRITERIA
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {currentReminder.validation_checks.map((check) => (
-                    <div
-                      key={check.id}
-                      style={{
-                        padding: '8px 10px',
-                        backgroundColor: 'var(--color-surface)',
-                        border: '1px solid',
-                        borderColor: check.passed ? 'var(--status-approved-border)' : 'var(--status-rejected-border)',
-                        borderRadius: 'var(--radius-sm)',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '8px',
-                      }}
-                    >
-                      <span style={{
-                        color: check.passed ? 'var(--color-primary)' : 'var(--color-signal)',
-                        fontWeight: 700,
-                        fontSize: '14px',
-                        lineHeight: 1,
-                        marginTop: '2px',
-                      }}>
-                        {check.passed ? '✓' : '✕'}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)' }}>
-                          {check.label}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '2px' }}>
-                          {check.detail}
-                        </div>
-                      </div>
+                  {currentReminder.approved_at && (
+                    <div style={{ fontSize: '10px', color: 'var(--color-muted)', marginTop: '4px' }}>
+                      {new Date(currentReminder.approved_at).toLocaleDateString()}
                     </div>
-                  ))}
+                  )}
                 </div>
-
-                <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--color-muted)', fontStyle: 'italic' }}>
-                  Notice: Heuristic checks enforce structural hygiene, not clinical certification.
-                </div>
-              </div>
-
-              {/* Action Buttons: Human Approval / Rejection */}
-              <div style={{ marginTop: 'auto', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border-subtle)' }}>
-                {currentReminder.status === 'draft' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <button
-                      onClick={handleApprove}
-                      disabled={isSaving}
-                      className="btn-primary"
-                      style={{ width: '100%', justifyContent: 'center' }}
-                    >
-                      {isSaving ? 'Processing...' : 'Approve Draft for Dispatch'}
-                    </button>
-                    <button
-                      onClick={handleReject}
-                      disabled={isSaving}
-                      className="btn-danger"
-                      style={{ width: '100%', justifyContent: 'center' }}
-                    >
-                      Reject Draft
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{
-                    padding: '12px',
-                    backgroundColor: 'var(--color-paper)',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border)',
-                    textAlign: 'center',
-                  }}>
-                    <span className="mono-label">LIFECYCLE STATUS</span>
-                    <div style={{ fontWeight: 600, fontSize: '14px', marginTop: '4px', textTransform: 'capitalize' }}>
-                      {currentReminder.status}
-                    </div>
-                    {currentReminder.approved_at && (
-                      <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>
-                        Approved by {currentReminder.approved_by} on {new Date(currentReminder.approved_at).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           ) : (
-            <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-muted)', fontSize: '13px' }}>
-              Select an encounter and generate a draft to inspect guardrails and provenance.
+            <div style={{ padding: 'var(--space-3)', textAlign: 'center', color: 'var(--color-muted)', fontSize: '12px' }}>
+              Select encounter
             </div>
           )}
         </div>
