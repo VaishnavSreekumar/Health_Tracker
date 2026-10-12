@@ -83,6 +83,16 @@ class ReminderGenerationService:
                 reminders_skipped += 1
                 continue
 
+            # Integrity safeguard: skip and record failure if appointment lacks associated patient
+            if not appointment.patient:
+                logger.warning(
+                    "Appointment id=%d has no associated patient; recording failure",
+                    appointment.id,
+                )
+                failures += 1
+                failed_appointment_ids.append(appointment.id)
+                continue
+
             try:
                 # Format non-clinical reminder message with provenance metadata if supported
                 if hasattr(self.personalizer, "personalize_with_details"):
@@ -113,7 +123,7 @@ class ReminderGenerationService:
 
                 reminders_created += 1
                 created_reminder_ids.append(new_reminder.id)
-                logger.debug(
+                logger.info(
                     "Successfully drafted reminder_id=%d for appointment_id=%d",
                     new_reminder.id,
                     appointment.id,

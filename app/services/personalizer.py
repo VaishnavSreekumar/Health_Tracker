@@ -34,37 +34,41 @@ class TemplateMessagePersonalizer:
 
     TEMPLATES = {
         AppointmentType.ROUTINE_CHECKUP: (
-            "Hello {name}, thank you for attending your routine checkup. "
-            "We hope your visit went smoothly. "
-            "Please contact our office if you have any questions or need to schedule your next visit."
+            "Hello {name}, thank you for visiting our clinic for your routine checkup. "
+            "If you have any questions following your visit or wish to arrange your next routine appointment, "
+            "please feel free to reach out to our office team."
         ),
         AppointmentType.FOLLOW_UP: (
-            "Hello {name}, thank you for attending your follow-up appointment. "
-            "Please reach out to our care team if you have any questions or need further assistance."
+            "Hello {name}, thank you for attending your follow-up appointment with our care team. "
+            "If you require administrative assistance or have questions regarding your encounter, "
+            "please contact our office."
         ),
         AppointmentType.SPECIALIST_CONSULTATION: (
-            "Hello {name}, thank you for attending your specialist consultation. "
-            "Please contact our office if you have any questions or need help coordinating next steps."
+            "Hello {name}, thank you for attending your specialist consultation with our practice. "
+            "If you have any appointment-related questions or need help coordinating next steps with our clinic, "
+            "please reach out to our team."
         ),
         AppointmentType.ANNUAL_PHYSICAL: (
-            "Hello {name}, thank you for completing your annual physical examination. "
-            "Our care team is here to support your long-term health and wellness. "
-            "Please contact us if you need anything."
+            "Hello {name}, thank you for completing your annual physical examination with our practice. "
+            "If you have questions about your visit or need assistance scheduling future care, "
+            "our clinic team is here to assist you."
         ),
         AppointmentType.POST_PROCEDURE: (
-            "Hello {name}, thank you for attending your post-procedure appointment. "
-            "Please contact our clinic if you have any questions or need assistance during your recovery."
+            "Hello {name}, thank you for attending your post-procedure appointment with our clinic. "
+            "We appreciate your visit and are here to support you. "
+            "If you have any clinical questions or concerns, please contact our care team directly."
         ),
     }
 
     FALLBACK_TEMPLATE = (
         "Hello {name}, thank you for attending your recent appointment with our clinic. "
-        "Please contact our office if you have any questions or need further assistance."
+        "If you have any questions about your visit or need assistance with next steps, "
+        "please reach out to our office."
     )
 
-    def _extract_patient_greeting_name(self, appointment: Appointment) -> str:
+    def _extract_patient_greeting_name(self, appointment: Optional[Appointment]) -> str:
         """Safely extract and sanitize patient first name or return neutral fallback."""
-        if appointment.patient and appointment.patient.first_name:
+        if appointment and appointment.patient and appointment.patient.first_name:
             first_line = (
                 appointment.patient.first_name.strip().splitlines()[0]
                 if appointment.patient.first_name.strip().splitlines()
@@ -79,10 +83,21 @@ class TemplateMessagePersonalizer:
         """Produce a deterministic follow-up reminder message."""
         name = self._extract_patient_greeting_name(appointment)
 
-        # Lookup template by appointment type
-        template = self.TEMPLATES.get(
-            appointment.appointment_type,  # type: ignore[arg-type]
-            self.FALLBACK_TEMPLATE,
-        )
+        # Lookup template by appointment type (supporting both Enum and string values)
+        apt_type = appointment.appointment_type if appointment else None
+        template = self.TEMPLATES.get(apt_type)  # type: ignore[arg-type]
+
+        if template is None and hasattr(apt_type, "value"):
+            template = self.TEMPLATES.get(apt_type.value)  # type: ignore[arg-type]
+
+        if template is None and isinstance(apt_type, str):
+            try:
+                enum_val = AppointmentType(apt_type)
+                template = self.TEMPLATES.get(enum_val)
+            except ValueError:
+                template = None
+
+        if template is None:
+            template = self.FALLBACK_TEMPLATE
 
         return template.format(name=name)
